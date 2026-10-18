@@ -89,8 +89,15 @@ function setLabel(main, sub, t, hold = 5) {
 }
 
 function camTo(pos, target, t, dur, ease = "power2.inOut") {
-  TL.to(CAMERA.position, { duration: dur, x: pos.x, y: pos.y, z: pos.z, ease }, t);
-  TL.to(CAMERA, { duration: dur, lookAt: { x: target.x, y: target.y, z: target.z }, ease }, t);
+  const lookAtTarget = new THREE.Vector3(target.x, target.y, target.z);
+  TL.to(CAMERA.position, {
+    duration: dur,
+    x: pos.x,
+    y: pos.y,
+    z: pos.z,
+    ease,
+    onUpdate: () => CAMERA.lookAt(lookAtTarget),
+  }, t);
 }
 
 function pulseNode(name, t, dur = 0.8) {
