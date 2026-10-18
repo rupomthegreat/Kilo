@@ -3,394 +3,73 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DNS Explainer - Three.js + GSAP</title>
+<title>3D Explainer Animations</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #05050a; color: #e8eaf2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   #canvas { position: absolute; inset: 0; display: block; }
-  .overlay { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
-  .label {
-    pointer-events: auto;
-    position: absolute;
-    padding: 8px 14px;
-    border-radius: 8px;
-    background: rgba(15, 15, 24, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(6px);
-    color: #e8eaf2;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-    will-change: transform, opacity;
-  }
-  .label.show { opacity: 1; visibility: visible; }
-  .label::after {
-    content: "";
-    position: absolute;
-    bottom: -6px; left: 50%;
-    transform: translateX(-50%);
-    width: 0; height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid rgba(255, 255, 255, 0.12);
-  }
-  .hint {
-    position: absolute; bottom: 24px; left: 50%;
-    transform: translateX(-50%);
-    color: #7a7ea0;
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    opacity: 0.8;
-  }
+  .wrap { position: relative; z-index: 20; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+  h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  p.sub { color: #9aa0bc; font-size: 14px; margin-bottom: 32px; text-align: center; max-width: 560px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; width: 100%; max-width: 900px; }
+  .card { position: relative; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,15,24,0.6); backdrop-filter: blur(10px); padding: 24px; cursor: pointer; transition: transform .2s, border-color .2s; overflow: hidden; }
+  .card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(129,140,248,0.06)); opacity: 0; transition: opacity .2s; }
+  .card:hover { transform: translateY(-4px); border-color: rgba(56,189,248,0.5); }
+  .card:hover::before { opacity: 1; }
+  .card h2 { font-size: 19px; font-weight: 700; margin-bottom: 6px; color: #e8eaf2; }
+  .card .desc { font-size: 13px; color: #9aa0bc; line-height: 1.5; margin-bottom: 14px; }
+  .card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .card .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); border-radius: 4px; padding: 2px 8px; }
+  .card .open { font-size: 12px; font-weight: 700; color: #e8eaf2; display: inline-flex; align-items: center; gap: 6px; }
+  .card .open::after { content: "→"; }
+  .empty { color: #7a7ea0; font-size: 16px; text-align: center; }
+  .hint { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); color: #7a7ea0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
 </style>
 </head>
 <body>
 <div id="canvas"></div>
-<div class="overlay">
-  <div class="label" id="lbl-main">Typing "sysminu.com"</div>
-  <div class="label" id="lbl-sub" style="margin-top:8px; font-size:11px; color:#9aa0bc; font-weight:500;"></div>
+<div class="wrap">
+  <h1>3D Explainers</h1>
+  <p class="sub">Deterministic, seekable Three.js + GSAP animations. Open DevTools and call <code>window.__seek(t)</code> inside any animation.</p>
+  <div class="grid" id="grid"></div>
 </div>
-<div class="hint">Seekable — open DevTools and call window.__seek(t)</div>
+<div class="hint">GitHub Pages ready — push to <code>gh-pages</code> or enable Pages from <code>main</code></div>
 
 <script type="importmap">
 {
-  "imports": {
-    "three": "https://esm.sh/three@0.169.0",
-    "three/addons/": "https://esm.sh/three@0.169.0/examples/jsm/",
-    "gsap": "https://esm.sh/gsap@3.12.5"
-  }
+  "imports": {}
 }
 </script>
-
-<script type="module">
-import * as THREE from "three";
-import { gsap } from "gsap";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
-const CANVAS = document.getElementById("canvas");
-const SCENE = new THREE.Scene();
-
-// Dark gradient background via scene fog + renderer clear color
-SCENE.background = new THREE.Color(0x0a0a14);
-SCENE.fog = new THREE.FogExp2(0x0a0a14, 0.015);
-
-const CAMERA = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
-CAMERA.position.set(0, 0, 18);
-
-const RENDERER = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
-RENDERER.setSize(window.innerWidth, window.innerHeight);
-RENDERER.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-RENDERER.toneMapping = THREE.ACESFilmicToneMapping;
-RENDERER.toneMappingExposure = 1.1;
-CANVAS.appendChild(RENDERER.domElement);
-
-// ---------- Lighting (key + rim + ambient) ----------
-const AMBIENT = new THREE.AmbientLight(0xffffff, 0.35);
-SCENE.add(AMBIENT);
-
-const KEY = new THREE.DirectionalLight(0xffffff, 1.6);
-KEY.position.set(8, 6, 4);
-SCENE.add(KEY);
-
-const RIM = new THREE.DirectionalLight(0x2aa0ff, 1.0);
-RIM.position.set(-6, 2, -6);
-SCENE.add(RIM);
-
-const FILL = new THREE.PointLight(0xaa44ff, 2.5, 20);
-FILL.position.set(0, 4, 2);
-SCENE.add(FILL);
-
-// ---------- Material helpers ----------
-const MAT_NODE = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.45, metalness: 0.35, flatShading: true });
-const MAT_NODE_ACTIVE = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.3, metalness: 0.5, flatShading: true, emissive: 0x22c55e, emissiveIntensity: 0.6 });
-const MAT_PACKET = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.2, metalness: 0.6, flatShading: true, emissive: 0x38bdf8, emissiveIntensity: 1.2 });
-const MAT_LINE = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.35 });
-
-// ---------- Procedural scene objects ----------
-const GROUP = new THREE.Group();
-SCENE.add(GROUP);
-
-function makeBox(w, h, d, mat = MAT_NODE) {
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mesh = new THREE.Mesh(geo, mat);
-  return mesh;
-}
-function makeSphere(r, mat = MAT_NODE, segs = 14) {
-  const geo = new THREE.SphereGeometry(r, segs, segs);
-  return new THREE.Mesh(geo, mat);
-}
-function makeCylinder(rTop, rBot, h, mat = MAT_NODE, segs = 10) {
-  const geo = new THREE.CylinderGeometry(rTop, rBot, h, segs);
-  return new THREE.Mesh(geo, mat);
-}
-function makeTorus(r, tube, mat = MAT_NODE) {
-  const geo = new THREE.TorusGeometry(r, tube, 10, 20);
-  return new THREE.Mesh(geo, mat);
-}
-
-// Node helper: box body + orbiting ring + label anchor
-function createNode(name, pos, bodyMat, scale = 1) {
-  const root = new THREE.Group();
-  root.name = name;
-  root.position.copy(pos);
-  const body = makeBox(1.4 * scale, 1.4 * scale, 1.4 * scale, bodyMat);
-  body.name = name + "-body";
-  root.add(body);
-
-  const ring = makeTorus(0.9 * scale, 0.07 * scale, MAT_LINE);
-  ring.rotation.x = Math.PI / 2;
-  root.add(ring);
-
-  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scale, 8, 8), bodyMat);
-  dot.position.y = 0.85 * scale;
-  dot.name = name + "-dot";
-  root.add(dot);
-
-  GROUP.add(root);
-  return { root, body, dot };
-}
-
-const NODES = {};
-NODES.user = createNode("user", new THREE.Vector3(-7, 0, 0), MAT_NODE, 1.0);
-NODES.resolver = createNode("resolver", new THREE.Vector3(0, 0, 5), MAT_NODE, 1.1);
-NODES.root = createNode("root", new THREE.Vector3(6, 1, -4), MAT_NODE, 1.6);
-NODES.tld = createNode("tld", new THREE.Vector3(-2, -2, -7), MAT_NODE, 1.2);
-NODES.auth = createNode("auth", new THREE.Vector3(7, -1, 8), MAT_NODE, 1.3);
-
-// ---------- Lines between nodes (disconnection/reconnection) ----------
-function makeLine(a, b) {
-  const pts = [a.clone(), b.clone()];
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const line = new THREE.LineSegments(geo, MAT_LINE);
-  line.frustumCulled = false;
-  return line;
-}
-
-const LINES = {};
-function addLine(name, a, b) {
-  const line = makeLine(a, b);
-  GROUP.add(line);
-  LINES[name] = line;
-  return line;
-}
-
-// Nodes positions in world space (we'll track roots' world positions)
-function worldPos(obj) {
-  const v = new THREE.Vector3();
-  obj.getWorldPosition(v);
-  return v;
-}
-
-addLine("user-resolver", NODES.user.root.position, NODES.resolver.root.position);
-addLine("resolver-root", NODES.resolver.root.position, NODES.root.root.position);
-addLine("root-tld", NODES.root.root.position, NODES.tld.root.position);
-addLine("tld-auth", NODES.tld.root.position, NODES.auth.root.position);
-addLine("auth-resolver", NODES.auth.root.position, NODES.resolver.root.position);
-addLine("resolver-user", NODES.resolver.root.position, NODES.user.root.position);
-
-// Initially hide all lines
-Object.values(LINES).forEach(l => (l.visible = false));
-
-// ---------- Glowing packet (mesh + light) ----------
-const PACKET_GROUP = new THREE.Group();
-const packetBody = makeSphere(0.22, MAT_PACKET);
-PACKET_GROUP.add(packetBody);
-const packetLight = new THREE.PointLight(0x38bdf8, 3, 8);
-packetLight.position.set(0, 0, 0);
-PACKET_GROUP.add(packetLight);
-SCENE.add(PACKET_GROUP);
-PACKET_GROUP.visible = false;
-
-// Text overlay references
-const LBL_MAIN = document.getElementById("lbl-main");
-const LBL_SUB = document.getElementById("lbl-sub");
-
-// ---------- Projection helper ----------
-function project(vector) {
-  vector.clone().project(CAMERA);
-  const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
-  return { x, y };
-}
-
-// ---------- Deterministic timeline ----------
-const TL = gsap.timeline({ paused: true, smoothChildTiming: true });
-
-// Animate helpers
-function fadeIn(obj, dur = 0.4, from = 0, to = 1) {
-  obj.visible = true;
-  return TL.to(obj, { duration: dur, opacity: from === 0 ? 0 : 0, visible: true, ease: "none" }, 0)
-    .to(obj, { duration: dur, opacity: to, ease: "power2.out" }, "<");
-}
-// simpler: use opacity on material for meshes, visible for groups
-
-function setVisible(obj, v) {
-  obj.visible = v;
-}
-
-// Build the 60s timeline
-const DUR = 60;
-
-// Track line visibility via GSAP on .visible property isn't supported directly; use onStart/onUpdate callbacks or set visible at start of segments.
-
-// Helper to set line visible at a time
-function showLineAt(time, name) {
-  TL.to({}, { duration: 0, onStart: () => { LINES[name].visible = true; } }, time);
-}
-function hideLineAt(time, name) {
-  TL.to({}, { duration: 0, onStart: () => { LINES[name].visible = false; } }, time);
-}
-
-// Utility: move packet along path between two world points
-function movePacket(fromObj, toObj, startTime, dur) {
-  const p0 = { x: fromObj.position.x, y: fromObj.position.y, z: fromObj.position.z };
-  const p1 = { x: toObj.position.x, y: toObj.position.y, z: toObj.position.z };
-  const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 + 1.2, z: (p0.z + p1.z) / 2 };
-  TL.to(PACKET_GROUP.position, {
-    duration: dur,
-    bezier: { type: "cubic", values: [p0, mid, mid, p1] },
-    ease: "power2.inOut",
-  }, startTime);
-  TL.to(PACKET_GROUP.scale, { duration: dur * 0.3, x: 1.5, y: 1.5, z: 1.5, yoyo: true, repeat: 1, ease: "power2.inOut" }, startTime);
-}
-
-// Utility: node pulse
-function pulseNode(name, t, dur = 0.6) {
-  const node = NODES[name].body;
-  TL.to(node.scale, { duration: dur * 0.3, x: 1.25, y: 1.25, z: 1.25, ease: "power2.out" }, t);
-  TL.to(node.scale, { duration: dur * 0.3, x: 1, y: 1, z: 1, ease: "power2.in" }, t + dur * 0.3);
-  TL.to(node.material, { duration: dur, emissiveIntensity: 1.2, ease: "power2.inOut" }, t);
-  TL.to(node.material, { duration: dur, emissiveIntensity: 0.6 }, t + dur);
-}
-
-// Utility: camera move
-function camTo(pos, target, t, dur, ease = "power2.inOut") {
-  TL.to(CAMERA.position, { duration: dur, x: pos.x, y: pos.y, z: pos.z, ease }, t);
-  TL.to(CAMERA, { duration: dur, lookAt: { x: target.x, y: target.y, z: target.z }, ease }, t);
-}
-
-// Utility: label
-function setLabel(main, sub, t, dur = 0.3, hold = 3) {
-  TL.to({}, { duration: 0, onStart: () => { LBL_MAIN.textContent = main; LBL_SUB.textContent = sub; LBL_MAIN.classList.add("show"); LBL_SUB.classList.add("show"); } }, t);
-  TL.to({}, { duration: 0, onStart: () => { LBL_MAIN.classList.remove("show"); LBL_SUB.classList.remove("show"); } }, t + dur + hold);
-}
-
-// Build animation
-// 0-5 Hook: User types
-camTo(new THREE.Vector3(-7, 2, 6), NODES.user.root.position, 0, 2);
-setLabel("Typing \"sysminu.com\"", "User initiates DNS query", 0, 0.3, 5);
-pulseNode("user", 1, 0.8);
-TL.to(NODES.user.dot.material, { duration: 0.4, emissiveIntensity: 2, emissive: 0x22c55e }, 1);
-TL.to(NODES.user.dot.material, { duration: 0.4, emissiveIntensity: 0.4, emissive: 0x6b7280 }, 1.8);
-
-// 5-12 Request: packet user -> resolver
-PACKET_GROUP.visible = true;
-TL.set(PACKET_GROUP.position, { x: NODES.user.root.position.x, y: NODES.user.root.position.y, z: NODES.user.root.position.z }, 5);
-movePacket(NODES.user.root, NODES.resolver.root, 5, 2);
-setLabel("The Request", "Packet travels to Resolver", 5, 0.3, 6);
-pulseNode("resolver", 7.5, 0.8);
-camTo(new THREE.Vector3(-2, 1, 8), new THREE.Vector3(-3.5, 0, 2.5), 5, 3);
-
-// 12-20 Root: resolver -> root server
-movePacket(NODES.resolver.root, NODES.root.root, 12, 2.5);
-setLabel("The Root Server", "Resolver queries root for TLD", 12, 0.3, 7);
-pulseNode("root", 15, 1);
-showLineAt(13, "resolver-root");
-camTo(new THREE.Vector3(8, 4, -2), NODES.root.root.position, 12, 3);
-
-// 20-30 TLD: root -> tld
-movePacket(NODES.root.root, NODES.tld.root, 20, 2.5);
-setLabel("The TLD Server (.com)", "Root points to .com TLD", 20, 0.3, 9);
-pulseNode("tld", 23, 1);
-showLineAt(21, "root-tld");
-camTo(new THREE.Vector3(0, -4, -9), NODES.tld.root.position, 20, 3);
-
-// 30-40 Authoritative: tld -> auth
-movePacket(NODES.tld.root, NODES.auth.root, 30, 2.5);
-setLabel("Authoritative Server", "TLD returns sysminu.com IP", 30, 0.3, 9);
-pulseNode("auth", 33, 1);
-showLineAt(31, "tld-auth");
-camTo(new THREE.Vector3(9, 1, 9), NODES.auth.root.position, 30, 3);
-
-// 40-50 Return: auth -> resolver -> user
-TL.to(PACKET_GROUP.position, { duration: 0, x: NODES.auth.root.position.x, y: NODES.auth.root.position.y, z: NODES.auth.root.position.z }, 40);
-movePacket(NODES.auth.root, NODES.resolver.root, 40, 2);
-movePacket(NODES.resolver.root, NODES.user.root, 42, 2);
-setLabel("The Return", "IP travels back to Resolver, then User", 40, 0.3, 9);
-pulseNode("user", 44, 1);
-showLineAt(41, "auth-resolver");
-showLineAt(43, "resolver-user");
-camTo(new THREE.Vector3(-5, 2, 7), new THREE.Vector3(-2, 0, 2), 40, 3);
-
-// 50-60 Resolution: user <-> auth connected
-TL.to({}, { duration: 0, onStart: () => { Object.values(LINES).forEach(l => l.visible = true); } }, 50);
-setLabel("Connection Established", "sysminu.com resolved — connected", 50, 0.3, 10);
-pulseNode("auth", 52, 1);
-pulseNode("user", 52, 1);
-camTo(new THREE.Vector3(0, 6, 22), new THREE.Vector3(0, 0, 0), 50, 4);
-
-// End: hold
-TL.to({}, { duration: 0 }, 60);
-
-// ---------- Render loop ----------
-const CONTROLS = new OrbitControls(CAMERA, RENDERER.domElement);
-CONTROLS.enabled = false;
-
-function render() {
-  RENDERER.render(SCENE, CAMERA);
-  // update labels by projecting node dot positions
-  updateLabels();
-}
-
-function updateLabels() {
-  // Position sub-label near active node if any; keep centered for now
-}
-
-// Expose seek
-window.__timelines = [TL];
-window.__duration = DUR;
-window.__seek = async (t) => {
-  t = Math.max(0, Math.min(DUR, t));
-  TL.pause();
-  TL.time(t);
-  render();
-  await new Promise(r => requestAnimationFrame(r));
-  await new Promise(r => requestAnimationFrame(r));
-  render();
-};
-
-// Initial render
-TL.pause();
-TL.time(0);
-render();
-
-// Resize
-window.addEventListener("resize", () => {
-  CAMERA.aspect = window.innerWidth / window.innerHeight;
-  CAMERA.updateProjectionMatrix();
-  RENDERER.setSize(window.innerWidth, window.innerHeight);
-  render();
-});
-
-// Auto-play once
-let started = false;
-function start() {
-  if (started) return;
-  started = true;
-  TL.play();
-}
-window.addEventListener("pointerdown", start, { once: true });
-window.addEventListener("keydown", start, { once: true });
-
-// Also auto-start after a brief moment if no interaction
-setTimeout(start, 1500);
-
-render();
+<script defer src="animations.js"></script>
+<script defer>
+  (function () {
+    const grid = document.getElementById("grid");
+    function render() {
+      const list = window.ANIMATIONS || [];
+      grid.innerHTML = "";
+      if (!list.length) {
+        grid.innerHTML = '<div class="empty">No animations registered yet. Add entries to /animations.js</div>';
+        return;
+      }
+      list.forEach((a) => {
+        const card = document.createElement("a");
+        card.href = a.path;
+        card.className = "card";
+        card.innerHTML = `
+          <h2>${a.name}</h2>
+          <div class="desc">${a.desc}</div>
+          <div class="tags">${(a.tags || []).map(t => '<span class="tag">' + t + '</span>').join("")}</div>
+          <div class="open">Open animation</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", render);
+    } else {
+      render();
+    }
+  })();
 </script>
 </body>
 </html>
