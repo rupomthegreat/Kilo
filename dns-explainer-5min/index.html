@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DNS Explainer — 5-Minute 3D Animation (Three.js + GSAP)</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="canvas"></div>
+<div class="overlay">
+  <div class="label" id="lbl-main">Typing "sysminu.com"</div>
+  <div class="label" id="lbl-sub" style="margin-top:8px;"></div>
+</div>
+<div id="timecode">0:00</div>
+<div id="progress-wrap"><div id="progress"></div></div>
+<div class="hint">Seekable — open DevTools and call window.__seek(t)</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.169.0",
+    "gsap": "https://esm.sh/gsap@3.12.5"
+  }
+}
+</script>
+
+<script type="module" src="js/animation.js"></script>
+</body>
+</html>
