@@ -17,8 +17,12 @@ export const GROUP = new THREE.Group();
 SCENE.add(GROUP);
 
 // Lighting: key + rim + ambient + accent
-const AMBIENT = new THREE.AmbientLight(0xffffff, 0.3);
+const AMBIENT = new THREE.AmbientLight(0xffffff, 0.6);
 SCENE.add(AMBIENT);
+
+// Debug helpers so the scene is never completely blank
+SCENE.add(new THREE.GridHelper(100, 50, 0x444455, 0x222233));
+SCENE.add(new THREE.AxesHelper(12));
 
 const KEY = new THREE.DirectionalLight(0xffffff, 1.7);
 KEY.position.set(9, 7, 5);

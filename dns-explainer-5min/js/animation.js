@@ -96,7 +96,10 @@ function camTo(pos, target, t, dur, ease = "power2.inOut") {
     y: pos.y,
     z: pos.z,
     ease,
-    onUpdate: () => CAMERA.lookAt(lookAtTarget),
+    onUpdate: () => {
+      CAMERA.lookAt(lookAtTarget);
+      CAMERA.updateMatrixWorld();
+    },
   }, t);
 }
 
@@ -244,6 +247,8 @@ setTimeout(start, 1200);
 // Initial
 TL.pause();
 TL.time(0);
+CAMERA.lookAt(new THREE.Vector3(0, 0, 0));
+CAMERA.updateMatrixWorld();
 updateLines();
 render();
 updateUI(0);
